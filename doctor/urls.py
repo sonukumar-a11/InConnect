@@ -4,9 +4,6 @@ from .views import DoctorRegisterViewSet, DoctorViewSet
 
 router = DefaultRouter(trailing_slash=False)
 router.register(r'register', DoctorRegisterViewSet, basename='doctor-register')
-urlpatterns = [
-    path('', include(router.urls)),
-    path('detail/<str:doctor_id>', DoctorViewSet.as_view(), name='api_doctor_registration'),
-
-]
+router.register(r'detail', DoctorViewSet, basename='doctor-detail')
+urlpatterns = router.urls
 print(urlpatterns)

@@ -48,5 +48,5 @@ class doctor(models.Model):
         return self.user.id
 
     def __str__(self):
-        return self.user.first_name
+        return self.user.username
 

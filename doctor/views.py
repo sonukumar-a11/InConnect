@@ -1,10 +1,15 @@
+from django.shortcuts import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import viewsets
 import rest_framework.status as status
+from rest_framework.mixins import RetrieveModelMixin
+from rest_framework.decorators import action
 from .models import doctor
-from doctor.serializers import doctorRegistrationSerializer, doctorDetailSerializer
+from doctor.serializers import doctorRegistrationSerializer, doctorDetailSerializer, UpdateProfileDoctorSerializer, \
+    DoctorProfileSerializer, AppointmentSerializer
 from users.models import User
+from bookingAppointment.models import patient, Appointment
 
 
 # Create your views here.
@@ -38,61 +43,13 @@ class DoctorRegisterViewSet(viewsets.ViewSet):
             }, status=status.HTTP_400_BAD_REQUEST)
 
 
-class DoctorViewSet(APIView):
+from rest_framework import generics, mixins, views
 
-    def get(self, request, doctor_id):
-        doctor_profile = doctor.objects.filter(pk=doctor_id).get()
-        user = User.objects.filter(id=doctor_profile.user_id).get()
-        print(44,doctor_profile)
-        print(45,user)
-        user_detail = doctorRegistrationSerializer(user)
-        doctor_detail = doctorDetailSerializer(doctor_profile)
-        print(doctor_detail.data)
-        return Response({
-            'user_data': user_detail.data,
-            'doctor_detail': doctor_detail.data
-        }, status=status.HTTP_200_OK)
 
-    def put(self, request, doctor_id):
-        profile_doctor = \
-            {
-                "email_id": request.data["email_id"], "service": request.data["service"], "city": request.data["city"],
-                "state": request.data["state"], "zipcode": request.data["zipcode"], "rating": request.data["rating"],
-                "toTime": request.data["toTime"], "fromTime": request.data["fromTime"]
-            }
-        doctor_profile = doctor.objects.filter(pk=doctor_id).get()
-        user = User.objects.filter(id=doctor_id)
-        profileSerializer = doctorDetailSerializer(
-            data=profile_doctor
-        )
-        if profileSerializer.is_valid():
-            profileSerializer.save()
-            return Response({
-                'profile_data': profileSerializer.data
-            })
-        else:
-            return Response({
-                "Provided Data is not valid"
-            }, status=status.HTTP_404_NOT_FOUND)
+class DoctorViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, mixins.DestroyModelMixin,
+                    viewsets.GenericViewSet):
+    serializer_class = UpdateProfileDoctorSerializer
 
-    def delete(self, request, doctor_id):
-        doctor_profile = doctor.objects.filter(pk=doctor_id).get()
-        user = User.objects.filter(id=doctor_id)
-        doctor_profile.delete()
-        return Response({"Successfully deleted"}, status=status.HTTP_204_NO_CONTENT)
-
-# {
-#     "username":"Sonu9496",
-#     "first_name":"Sonu",
-#     "last_name":"Kumar",
-#     "password":"Nexa9491@",
-#     "password2":"Nexa9491@",
-#     "email_id":"sharmasonu04359491@gmail.com",
-#     "service":"CL,",
-#     "city":"Noida",
-#     "state":"UP",
-#     "zipcode":201301,
-#     "toTime": "10:30:00",
-#     "fromTime":"12:30:00",
-#     "rating":40
-# }
+    def get_queryset(self):
+        queryset = doctor.objects.filter(pk=self.kwargs['pk'])
+        return queryset
