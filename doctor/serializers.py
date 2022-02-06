@@ -1,4 +1,6 @@
 from rest_framework import serializers
+
+from bookingAppointment.models import Appointment
 from users.models import User
 from .models import doctor
 
@@ -8,7 +10,8 @@ class doctorRegistrationSerializer(serializers.Serializer):
     first_name = serializers.CharField(label='First name:')
     last_name = serializers.CharField(label='Last name:', required=False)
     password = serializers.CharField(label='password:', style={'input_type': 'password'}, write_only=True, min_length=8,
-                                     help_text="Your password must contain at least 8 characters and should not be entirely numeric")
+                                     help_text="Your password must contain at least 8 characters and should not be "
+                                               "entirely numeric")
     password2 = serializers.CharField(label='Confirm password:', style={'input_type': 'password'}, write_only=True)
 
     def validate_username(self, username):
@@ -42,7 +45,6 @@ class doctorRegistrationSerializer(serializers.Serializer):
 
 
 class doctorDetailSerializer(serializers.Serializer):
-
     Cardiologist = 'CL'
     Dermatologists = 'DL'
     Emergency_Medicine_Specialists = 'EMC'
@@ -91,3 +93,22 @@ class doctorDetailSerializer(serializers.Serializer):
         instance.fromTime = validate_data.get('fromTime', instance.fromTime)
         instance.save()
         return instance
+
+
+class AppointmentSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Appointment
+        fields = ['patient', 'rating', 'appointment_date']
+
+
+class DoctorProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = doctor
+        field = ['email_id', 'id', 'service', 'toTime', 'fromTime', 'city', 'state', 'rating']
+
+
+class UpdateProfileDoctorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = doctor
+        fields = ['email_id', 'service', 'toTime', 'fromTime', 'city', 'state', 'zipcode']
