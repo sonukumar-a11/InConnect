@@ -1,42 +1,15 @@
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.response import Response
 from rest_framework.views import APIView
-import rest_framework.status as status
 from rest_framework.decorators import action
+import rest_framework.status as status
 from rest_framework.filters import SearchFilter
 from rest_framework.viewsets import ModelViewSet, ViewSet
 from .serializers import PatientRegisterSerializer, patientProfileSerializer, AppointmentHistorySerializer, \
-    AppointmentSerializer, UpdateProfilePatientSerializer, UpdateAppointmentSerializer, DoctorDetails
+    AppointmentSerializer, UpdateProfilePatientSerializer, UpdateAppointmentSerializer, DoctorDetails, PatientSerializer
 from .models import patient, Appointment
 from .filters import DoctorFilter, AppointmentFilter
 from doctor.models import doctor
-from users.models import User
-
-
-class PatientRegisterViewSet(ViewSet):
-    serializer_class = PatientRegisterSerializer
-
-    def create(self, request):
-        profile_patient = \
-            {
-                "email_id": request.data["email_id"], "city": request.data["city"],
-                "state": request.data["state"], "zipcode": request.data["zipcode"]
-            }
-        data = request.data
-        print(17, request.data)
-        register_userSerializer = self.serializer_class(data=data)
-        register_userSerializer.is_valid(raise_exception=True)
-        user = register_userSerializer.save()
-        # profile_patient["user"] = user.id
-        patient_profileSerializer = patientProfileSerializer(data=profile_patient)
-        print(30, profile_patient)
-        patient_profileSerializer.is_valid(raise_exception=True)
-        # print(34, str(user))
-        patient_profileSerializer.save(user=user)
-        return Response({
-            'user_data': register_userSerializer.data,
-            'patient_profile': patientProfileSerializer.data
-        }, status=status.HTTP_201_CREATED)
 
 
 class PatientProfileViewSet(ModelViewSet):
@@ -63,8 +36,6 @@ class AppointmentViewSet(ModelViewSet):
     def get_serializer_class(self):
         if self.request.method == "PATCH":
             return UpdateAppointmentSerializer
-        elif self.request.method == "POST":
-            return AppointmentSerializer
         return AppointmentHistorySerializer
 
 
@@ -75,88 +46,58 @@ class CreateAppointment(APIView):
         self.slot = None
         self.appointment_data = None
 
-    print(77)
-
     def get(self, request, patient_id):
-        # import pdb
-        # pdb.set_trace()
         doctor_queryset = doctor.objects.all()
         doctor_detail_serializer = DoctorDetails(doctor_queryset, many=True)
         return Response(doctor_detail_serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request, patient_id):
+        from datetime import datetime, timedelta
         patient_detail = patient.objects.filter(pk=patient_id).get()
-        print(patient_detail)
         data = request.data
-        print(data)
-        # appointment = Appointment.objects.get(service=data['service'])
-        # print(92, appointment)
-        doctor_detail = doctor.objects.filter(toTime__gte=data['appointment_time']). \
-            filter(fromTime__lte=data['appointment_time']).filter(zipcode=patient_detail.zipcode).filter(
+        start_datetime = datetime.strptime(data['schedule'], "%Y-%m-%dt%H:%M:%S")
+        end_datetime = start_datetime + timedelta(minutes=15)
+        print(62, end_datetime)
+        doctor_detail = doctor.objects.filter(toTime__lte=start_datetime.time(),
+                                              fromTime__gt=start_datetime.time()).filter(
+            zipcode=patient_detail.zipcode).filter(
             service=data['service'])
         count = 0
         for i in doctor_detail:
             count += 1
-        print(100, count)
 
         if count == 0:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
-        # checkDone
+            return Response(status=status.HTTP_404_NOT_FOUND)
         else:
             print("Give List")
             try:
-                self.appointment_detail = Appointment.objects.filter(doctor=doctor_detail.id).values_list(
-                    'appointment_date',
-                    'appointment_time')
+                print(76)
+                list_slot = []
+                for d in doctor_detail:
+                    indicate = False
+                    appointment_detail = Appointment.objects.filter(doctor=d)
+                    for slot in appointment_detail:
+                        # ek doctor is solt me available hai
+                        print(84, slot.schedule)
+                        print(85, start_datetime)
+                        if slot.schedule + timedelta(minutes=15) <= start_datetime:
+                            print('86', 'if')
+                            continue
+                        # ek doctor is solt me available hai
+                        elif slot.schedule > end_datetime:
+                            print('90', 'elif')
+                            continue
+                        else:
+                            indicate = True
+                            print(94, indicate)
+                            break
+                    if indicate:
+                        continue
+                    else:
+                        list_slot.append(doctor.object.get(id=d))
+                        print(list_slot)
             except:
-                self.slot = request.data['appointment_time']
-            try:
-                from datetime import datetime, timedelta
-                self.appointment_detail = max(self.appointment_detail)
-                s1 = datetime.strptime(self.appointment_detail.get('appointment_time'), "%H:%M:%S")
-                s2 = datetime.strptime(self.request.data.get('appointment_time'), "%H:%M:%S")
-                diff = s1 - s2
-                print(diff)
-                if datetime.strptime(str(diff), "%H:%M:%S") < datetime.strptime("0:15:00", "%H:%M:%S"):
-                    self.request.data['appointment_date'] = self.appointment_detail.get('appointment_date') + timedelta(
-                        days=1)
-                else:
-                    self.request.data['appointment_time'] = datetime.strptime(
-                        self.appointment_detail.get('appointment_time'), "%H:%M:%S") + timedelta(minutes=15)
-                appointment_serializer = AppointmentSerializer(request.data)
-                appointment_serializer.is_valid(raise_exception=True)
-                appointment_serializer.save()
-                return Response(
-                    {
-                        'appointment__detail': appointment_serializer.data
-                    }, status=status.HTTP_201_CREATED)
-
-            except:
-                appointment_serializer = AppointmentSerializer(request.data)
-                appointment_serializer.is_valid(raise_exception=True)
-                appointment_serializer.save()
-                return Response(
-                    {
-                        'appointment__detail': appointment_serializer.data
-                    }, status=status.HTTP_201_CREATED)
-
-    # def put(self, request):
-    #     try:
-    #         Appointment.objects.filter(pk=self.kwargs['pk'])
-    #     except Exception:
-    #         content = {'Patient does not exist'}
-    #         return Response(content, status=status.HTTP_404_NOT_FOUND)
-    #
-    #     data = request.data
-    #     appointmentSerializer = AppointmentSerializer(data=data)
-    #     if appointmentSerializer.is_valid():
-    #         appointmentSerializer.save()
-    #         return Response({
-    #             "appointment_data": appointmentSerializer.data
-    #         }, status=status.HTTP_201_CREATED)
-    #     else:
-    #         content = {"Provided Data is Feasible"}
-    #         return Response(content, status=status.HTTP_400_BAD_REQUEST)
+                return Response(status=status.HTTP_404_NOT_FOUND)
 
 
 class SearchViewSetDoctor(ModelViewSet):
@@ -167,9 +108,23 @@ class SearchViewSetDoctor(ModelViewSet):
     queryset = doctor.objects.all()
     serializer_class = DoctorDetails
 
+
+from rest_framework.mixins import CreateModelMixin, RetrieveModelMixin, UpdateModelMixin
+from rest_framework.viewsets import GenericViewSet
+
+
+class PatientViewSet(CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, GenericViewSet):
+    patient = patient.objects.all()
+    serializer_class = PatientSerializer
+
+
+
+
+
+
+
 # {
-# "service": "Cardiologist",
-# "rating": 80,
-#  "appointment_date": "2011-02-06",
-# "appointment_time": "04:00:00"
+# "service": "CL",
+# "rating": 40,
+# "schedule": "2011-02-06t01:00:00"
 # }

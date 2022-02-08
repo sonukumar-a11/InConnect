@@ -11,6 +11,8 @@ djangorestframework = "*"
 drf-nested-routers = "*"
 django-filter = "*"
 datetime = "*"
+djoser = "*"
+djangorestframework-simplejwt = "*"
 
 [dev-packages]
 

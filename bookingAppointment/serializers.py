@@ -30,23 +30,22 @@ class patientProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = patient
-        fields = ['email_id', 'city', 'state', 'zipcode']
+        fields = ['city', 'state', 'zipcode']
 
-    def create(self, validate_data):
-        import pdb
-        pdb.set_trace()
-        # new_patient = patient.objects.create(
-        #     email_id=validate_data['email_id'],
-        #     city=validate_data['city'],
-        #     state=validate_data['state'],
-        #     zipcode=validate_data['zipcode'],
-        #     user=validate_data['user'],
-        # )
-        # return new_patient
-        return patient.objects.create(**validate_data)
+    # def create(self, validate_data):
+    #     import pdb
+    #     pdb.set_trace()
+    #     new_patient = patient.objects.create(
+    #         email_id=validate_data['email_id'],
+    #         city=validate_data['city'],
+    #         state=validate_data['state'],
+    #         zipcode=validate_data['zipcode'],
+    #         user=validate_data['user'],
+    #     )
+    #     return new_patient
+    #     return patient.objects.create(**validate_data)
 
     def update(self, instance, validate_data):
-        instance.email_id = validate_data.get('email_id', instance.email_id)
         instance.city = validate_data.get('city', instance.city)
         instance.state = validate_data.get('state', instance.state)
         instance.zipcode = validate_data.get('zipcode', instance.zipcode)
@@ -55,23 +54,23 @@ class patientProfileSerializer(serializers.ModelSerializer):
 
 
 class DoctorDetails(serializers.ModelSerializer):
-    user = serializers.PrimaryKeyRelatedField(read_only=True)
+    user = serializers.StringRelatedField(read_only=True)
 
     class Meta:
         model = doctor
         fields = ['user', 'toTime', 'fromTime', 'rating', 'service']
 
 
-class AppointmentSerializer(serializers.Serializer):
-    doctor = DoctorDetails()
+class AppointmentSerializer(serializers.ModelSerializer):
+    doctor_id = serializers.UUIDField(read_only=True)
 
     class Meta:
         model = Appointment
-        fields = ['patient', 'doctor', 'service', 'appointment_date', 'appointment_time']
+        fields = ['doctor_id', 'service', 'appointment_date', 'appointment_time']
 
 
 class AppointmentHistorySerializer(serializers.ModelSerializer):
-    patient = serializers.PrimaryKeyRelatedField(read_only=True)
+    patient = serializers.StringRelatedField(read_only=True)
     doctor = serializers.StringRelatedField(read_only=True)
     appointment_date = serializers.DateField(read_only=True)
     service = serializers.CharField(read_only=True)
@@ -79,16 +78,24 @@ class AppointmentHistorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Appointment
-        fields = ['patient', 'doctor', 'service', 'appointment_date', 'appointment_time', 'rating']
+        fields = ['patient', 'doctor', 'service', 'appointment_date', 'appointment_time']
 
 
 class UpdateProfilePatientSerializer(serializers.ModelSerializer):
     class Meta:
         model = patient
-        fields = ['email_id', 'city', 'state', 'zipcode']
+        fields = ['city', 'state', 'zipcode']
 
 
 class UpdateAppointmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Appointment
         fields = ['patient', 'doctor', 'service', 'appointment_date', 'appointment_time']
+
+
+class PatientSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField()
+
+    class Meta:
+        model = patient
+        fields = ['user_id', 'city', 'state', 'zipcode']
