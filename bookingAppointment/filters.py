@@ -7,7 +7,7 @@ class AppointmentFilter(FilterSet):
     class Meta:
         model = Appointment
         fields = {
-            'appointment_time': ['lt', 'gt'],
+            'schedule': ['lt', 'gt'],
             'service': ['exact'],
             'patient__zipcode': ['exact'],
             'rating': ['gte', 'lte']
