@@ -1,18 +1,23 @@
+from datetime import datetime
+from django.core.mail import send_mail
+from django.conf import settings
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.response import Response
-from rest_framework.views import APIView
 from rest_framework.decorators import action
-import rest_framework.status as status
 from rest_framework.filters import SearchFilter
-from rest_framework.viewsets import ModelViewSet, ViewSet
-from .serializers import PatientRegisterSerializer, patientProfileSerializer, AppointmentHistorySerializer, \
-    AppointmentSerializer, UpdateProfilePatientSerializer, UpdateAppointmentSerializer, DoctorDetails, PatientSerializer
+from rest_framework.viewsets import ModelViewSet
+from rest_framework.response import Response
+import rest_framework.status as status
+from .serializers import BookAppointmentSerializer, patientProfileSerializer, AppointmentHistorySerializer,UpdateProfilePatientSerializer, UpdateAppointmentSerializer, DoctorDetails, PatientSerializer
 from .models import patient, Appointment
 from .filters import DoctorFilter, AppointmentFilter
 from doctor.models import doctor
 
 
 class PatientProfileViewSet(ModelViewSet):
+
+    """
+    List and update a model instance.
+    """
 
     def get_queryset(self):
         queryset = patient.objects.filter(pk=self.kwargs['pk'])
@@ -23,8 +28,21 @@ class PatientProfileViewSet(ModelViewSet):
             return UpdateProfilePatientSerializer
         return patientProfileSerializer
 
+class Util:
+    """
+    Sending the email For new Appointment
+    """
+    @staticmethod
+    def sent_email(data, email):
+        send_mail(data['email_subject'], data['email_body'], settings.EMAIL_HOST_USER, [email])
 
 class AppointmentViewSet(ModelViewSet):
+
+    """
+    CRUD on Appointment
+    """
+
+    http_method_names = ['get','patch','delete','post']
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filter_class = AppointmentFilter
     search_field = ['service']
@@ -33,74 +51,67 @@ class AppointmentViewSet(ModelViewSet):
         appointment_queryset = Appointment.objects.filter(patient_id=self.kwargs['patient_pk'])
         return appointment_queryset
 
+
     def get_serializer_class(self):
+        if self.request.method == "POST":
+            return BookAppointmentSerializer
         if self.request.method == "PATCH":
             return UpdateAppointmentSerializer
         return AppointmentHistorySerializer
+        
+    def get_serializer_context(self):
+        return {'patient_id':self.kwargs['patient_pk']}
+        
+    def create(self, request, *args, **kwargs):
+        serializer = BookAppointmentSerializer(data = request.data)
+        serializer.is_valid(raise_exception=True)
+        patient_detail = patient.objects.get(pk=self.kwargs['patient_pk'])
+        doctor_active = doctor.objects.filter(zipcode=patient_detail.zipcode,service=request.data.get('service'))
+        available_doctor = None
+        for d in doctor_active:
 
+            slot_check = False
+            doc_meet = Appointment.objects.filter(doctor=d)
 
-class CreateAppointment(APIView):
-    def __init__(self):
-        super().__init__()
-        self.appointment_detail = None
-        self.slot = None
-        self.appointment_data = None
-
-    def get(self, request, patient_id):
-        doctor_queryset = doctor.objects.all()
-        doctor_detail_serializer = DoctorDetails(doctor_queryset, many=True)
-        return Response(doctor_detail_serializer.data, status=status.HTTP_200_OK)
-
-    def post(self, request, patient_id):
-        from datetime import datetime, timedelta
-        patient_detail = patient.objects.filter(pk=patient_id).get()
-        data = request.data
-        start_datetime = datetime.strptime(data['schedule'], "%Y-%m-%dt%H:%M:%S")
-        end_datetime = start_datetime + timedelta(minutes=15)
-        print(62, end_datetime)
-        doctor_detail = doctor.objects.filter(toTime__lte=start_datetime.time(),
-                                              fromTime__gt=start_datetime.time()).filter(
-            zipcode=patient_detail.zipcode).filter(
-            service=data['service'])
-        count = 0
-        for i in doctor_detail:
-            count += 1
-
-        if count == 0:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+            for appoint in doc_meet:
+                data = request.data
+                if datetime.strftime(appoint.schedule_end,"%Y-%m-%dt%H:%M:%S") < request.data.get('schedule_start'):
+                    print
+                    slot_check = True
+                    continue
+                elif datetime.strftime(appoint.schedule_start,"%Y-%m-%dt%H:%M:%S") > data.get('schedule_end'):
+                    slot_check = True
+                    continue
+                else:
+                    return Response({"No Slot Avaliable"},status=status.HTTP_404_NOT_FOUND)
+            if slot_check:
+                available_doctor = doctor.objects.get(pk=d.id)
+        if available_doctor:
+            appoint = Appointment.objects.create(
+                    patient_id=self.kwargs['patient_pk'],
+                    schedule_start=data.get('schedule_start'),
+                    schedule_end=data.get('schedule_end'),doctor=available_doctor, service=data.get('service'))
+            appoint.save()
+            email = available_doctor.user.email
+            email_body = 'Apperciate For booking Appointment'.format(
+                patient_detail.user.first_name)
+            data = {
+                'email_body': email_body,
+                'email_subject': 'Appointment'
+            }
+            Util.sent_email(data,email)
+            return Response(status=201)
         else:
-            print("Give List")
-            try:
-                print(76)
-                list_slot = []
-                for d in doctor_detail:
-                    indicate = False
-                    appointment_detail = Appointment.objects.filter(doctor=d)
-                    for slot in appointment_detail:
-                        # ek doctor is solt me available hai
-                        print(84, slot.schedule)
-                        print(85, start_datetime)
-                        if slot.schedule + timedelta(minutes=15) <= start_datetime:
-                            print('86', 'if')
-                            continue
-                        # ek doctor is solt me available hai
-                        elif slot.schedule > end_datetime:
-                            print('90', 'elif')
-                            continue
-                        else:
-                            indicate = True
-                            print(94, indicate)
-                            break
-                    if indicate:
-                        continue
-                    else:
-                        list_slot.append(doctor.object.get(id=d))
-                        print(list_slot)
-            except:
-                return Response(status=status.HTTP_404_NOT_FOUND)
+            return Response({"No doctor Avaliable"},status=status.HTTP_404_NOT_FOUND)
+
 
 
 class SearchViewSetDoctor(ModelViewSet):
+
+    """
+    Seraching the Doctor With provided condition
+    """
+
     http_method_names = ['get']
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filter_class = DoctorFilter
@@ -111,20 +122,23 @@ class SearchViewSetDoctor(ModelViewSet):
 
 from rest_framework.mixins import CreateModelMixin, RetrieveModelMixin, UpdateModelMixin
 from rest_framework.viewsets import GenericViewSet
-
-
 class PatientViewSet(CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, GenericViewSet):
+
+    """
+    Creating, Updating, Retreving the User as Patient Instance
+    """
+
     patient = patient.objects.all()
+    
+
+    def get_serializer_context(self):
+        print(121,self.request.user.id)
+        return {'user_id': self.request.user.id}
+
     serializer_class = PatientSerializer
 
 
-
-
-
-
-
-# {
-# "service": "CL",
-# "rating": 40,
-# "schedule": "2011-02-06t01:00:00"
-# }
+    # def list(self, request, *args, **kwargs):
+    #     obj = self.filter_queryset(self.get_queryset()).values_list('doctor', flat=True)
+    #     doc = doctor.objects.filter(id__in=obj).values_list('user__first_name')
+    #     return Response(doc)

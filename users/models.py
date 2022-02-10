@@ -7,8 +7,8 @@ class User(AbstractUser):
     STATUS_PATIENT = "PATIENT"
     STATUS_DOCTOR = "DOCTOR"
     STATUS_IDENTITY = [
-        (STATUS_PATIENT, "True"),
-        (STATUS_DOCTOR, "False")
+        (STATUS_PATIENT, "False"),
+        (STATUS_DOCTOR, "True")
     ]
     USERNAME_FIELD = 'email'
     email = models.EmailField(unique=True, help_text="Using Email for Registering")

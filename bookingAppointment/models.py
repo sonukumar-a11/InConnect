@@ -25,9 +25,9 @@ class patient(models.Model):
 
 
 class Appointment(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, help_text="To determine the unique")
     service = models.CharField(max_length=30, help_text="Use for particular service which you want")
-    schedule = models.DateTimeField(help_text="for suggesting the time time as well as date")
+    schedule_start = models.DateTimeField(help_text="for suggesting the starting time as well as date")
+    schedule_end = models.DateTimeField(help_text="for suggesting the starting time as well as date")
     status = models.BooleanField(default=False, help_text="giving the status of appointment")
     patient = models.ForeignKey(patient, related_name='patient_appointments', on_delete=models.CASCADE,
                                 help_text="Related field for determining the appointment for which patient ")

@@ -15,6 +15,7 @@ def check_range(value):
 
 
 class doctor(models.Model):
+    
     Cardiologist = 'CL'
     Dermatologists = 'DL'
     Emergency_Medicine_Specialists = 'EMC'
