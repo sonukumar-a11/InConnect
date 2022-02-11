@@ -157,10 +157,14 @@ DJOSER = {
     }
 }
 
-EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_HOST = 'localhost'
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST_USER = 'trycodeinc@gmail.com'
-EMAIL_HOST_PASSWORD = 'kitelredgfkuynsv'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
 
+EMAIL_HOST_USER = ''
+EMAIL_HOST_PASSWORD = ''
+EMAIL_PORT = 2525
+EMAIL_USE_TLS = False
+DEFAULT_FROM_EMAIL='from@moshbuy.com'
+
+
+CELERY_BROKER_URL = 'redis://localhost:6379/1'
